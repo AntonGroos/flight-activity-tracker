@@ -1,0 +1,21 @@
+source:
+  zenodo_base_url: "https://zenodo.org/records/7923702/files"
+  months:
+    - "2020-01"
+    - "2020-02"
+    - "2020-03"
+  raw_dir: "data/raw"
+  download_timeout_seconds: 120
+
+transform:
+  min_flight_duration_minutes: 5
+  required_fields:
+    - callsign
+    - origin
+    - destination
+    - firstseen
+    - lastseen
+
+load:
+  file_format: "parquet"
+  gcs_prefix: "flights"
