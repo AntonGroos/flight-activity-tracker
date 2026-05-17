@@ -47,6 +47,13 @@ def enrich(df: pd.DataFrame, min_duration_minutes: int = 5) -> pd.DataFrame:
     df["firstseen"] = pd.to_datetime(df["firstseen"], utc=True, errors="coerce")
     df["lastseen"] = pd.to_datetime(df["lastseen"], utc=True, errors="coerce")
 
+    null_ts = df["firstseen"].isna().sum()
+    if null_ts > 0:
+        pct = null_ts / len(df) * 100
+        logger.warning("%.1f%% of rows have unparseable firstseen timestamps (%d rows).", pct, null_ts)
+        if pct > 50:
+            raise ValueError(f"Too many unparseable timestamps ({pct:.1f}%) — check source data.")
+
     df["duration_minutes"] = (
         (df["lastseen"] - df["firstseen"]).dt.total_seconds() / 60
     ).round(1)

@@ -26,8 +26,15 @@ logger = logging.getLogger(__name__)
 
 
 def load_config(path: str) -> dict:
-    with open(path) as f:
-        return yaml.safe_load(f)
+    try:
+        with open(path) as f:
+            return yaml.safe_load(f)
+    except yaml.YAMLError as exc:
+        logger.error("Invalid YAML in config file %s: %s", path, exc)
+        sys.exit(1)
+    except OSError as exc:
+        logger.error("Could not read config file %s: %s", path, exc)
+        sys.exit(1)
 
 
 def run(config: dict) -> None:
@@ -40,25 +47,42 @@ def run(config: dict) -> None:
         sys.exit(1)
 
     logger.info("=== Transform ===")
-    clean, report = transform(raw, config)
+    try:
+        cleaned, report = transform(raw, config)
+    except Exception as exc:
+        logger.error("Transform failed: %s", exc, exc_info=True)
+        sys.exit(1)
+
+    if cleaned.empty:
+        logger.error("Transform produced no rows — aborting.")
+        sys.exit(1)
 
     logger.info("Quality report:\n%s", json.dumps(report, indent=2, default=str))
 
     logger.info("=== Load ===")
     months = config["source"]["months"]
+    uploaded, failed = [], []
 
     for month_str in months:
         year, month = map(int, month_str.split("-"))
-        month_df = clean[
-            (clean["firstseen"].dt.year == year) & (clean["firstseen"].dt.month == month)
+        month_df = cleaned[
+            (cleaned["firstseen"].dt.year == year) & (cleaned["firstseen"].dt.month == month)
         ]
         if month_df.empty:
             logger.warning("No data for %s after transform — skipping upload.", month_str)
             continue
-        uri = upload_month(month_df, month_str)
-        logger.info("Uploaded %s → %s", month_str, uri)
+        try:
+            uri = upload_month(month_df, month_str)
+            logger.info("Uploaded %s → %s", month_str, uri)
+            uploaded.append(month_str)
+        except Exception as exc:
+            logger.error("Failed to upload %s: %s — skipping.", month_str, exc)
+            failed.append(month_str)
 
-    logger.info("=== Pipeline complete ===")
+    logger.info("=== Pipeline complete: %d uploaded, %d failed ===", len(uploaded), len(failed))
+    if failed:
+        logger.warning("Failed months: %s", ", ".join(failed))
+        sys.exit(1)
 
 
 def main() -> None:
@@ -72,7 +96,11 @@ def main() -> None:
         sys.exit(1)
 
     config = load_config(str(config_path))
-    run(config)
+    try:
+        run(config)
+    except Exception as exc:
+        logger.critical("Unexpected pipeline failure: %s", exc, exc_info=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

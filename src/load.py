@@ -30,12 +30,19 @@ def upload_month(df: pd.DataFrame, month_str: str) -> str:
     """Serialise df to Parquet and upload to GCS.
 
     Returns the full GCS URI of the uploaded object.
+    Raises RuntimeError on missing config or GCS failure.
     """
-    bucket_name = os.environ["GCS_BUCKET"]
+    bucket_name = os.environ.get("GCS_BUCKET")
+    if not bucket_name:
+        raise RuntimeError("GCS_BUCKET environment variable is not set.")
+
     blob_path = f"flights/{month_str}/data.parquet"
 
-    client = storage.Client()
-    bucket = _get_or_create_bucket(client, bucket_name)
+    try:
+        client = storage.Client()
+        bucket = _get_or_create_bucket(client, bucket_name)
+    except Exception as exc:
+        raise RuntimeError(f"Could not connect to GCS: {exc}") from exc
 
     buffer = io.BytesIO()
     df.to_parquet(buffer, index=False, engine="pyarrow")
