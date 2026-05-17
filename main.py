@@ -48,7 +48,10 @@ def run(config: dict) -> None:
     months = config["source"]["months"]
 
     for month_str in months:
-        month_df = clean[clean["firstseen"].dt.to_period("M").astype(str) == month_str]
+        year, month = map(int, month_str.split("-"))
+        month_df = clean[
+            (clean["firstseen"].dt.year == year) & (clean["firstseen"].dt.month == month)
+        ]
         if month_df.empty:
             logger.warning("No data for %s after transform — skipping upload.", month_str)
             continue

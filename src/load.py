@@ -42,7 +42,7 @@ def upload_month(df: pd.DataFrame, month_str: str) -> str:
     buffer.seek(0)
 
     blob = bucket.blob(blob_path)
-    blob.upload_from_file(buffer, content_type="application/octet-stream")
+    blob.upload_from_file(buffer, content_type="application/octet-stream", timeout=600)
 
     uri = f"gs://{bucket_name}/{blob_path}"
     logger.info("Uploaded %d rows → %s", len(df), uri)
