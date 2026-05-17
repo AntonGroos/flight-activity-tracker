@@ -1,4 +1,4 @@
-# OpenSky Flight ETL Pipeline
+# Flight ETL Pipeline
 
 A lightweight ETL pipeline that extracts monthly flight data from the [OpenSky COVID-19 Flight Dataset](https://zenodo.org/records/7923702), applies data quality transformations, and loads the result to Google Cloud Storage as Parquet.
 
